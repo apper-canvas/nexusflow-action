@@ -233,7 +233,7 @@ export default function ContactsFeature() {
             animate="visible"
             exit="exit"
           >
-            <ContactModal onSubmit={handleAddContact} onCancel={closeAddContactModal} contactTypes={contactTypes} statusOptions={statusOptions} X={X} />
+            <ContactModal onSubmit={handleAddContact} onCancel={closeAddContactModal} contactTypes={contactTypes} statusOptions={statusOptions} X={X} CheckCircle={CheckCircle} />
           </motion.div>
         </div>
       )}
@@ -242,7 +242,7 @@ export default function ContactsFeature() {
 }
 
 // Contact Modal Component
-const ContactModal = ({ onSubmit, onCancel, contactTypes, statusOptions, X }) => {
+const ContactModal = ({ onSubmit, onCancel, contactTypes, statusOptions, X, CheckCircle }) => {
   const initialFormData = {
     name: '',
     company: '',
