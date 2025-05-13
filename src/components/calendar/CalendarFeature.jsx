@@ -147,6 +147,8 @@ export default function CalendarFeature() {
           <EventModal 
             onClose={() => setIsEventModalOpen(false)} 
             onSubmit={handleAddEvent} 
+            X={X}
+            CheckCircle={CheckCircle}
           />
         )}
       </AnimatePresence>
@@ -157,7 +159,7 @@ export default function CalendarFeature() {
 }
 
 // Event Modal Component
-function EventModal({ onClose, onSubmit }) {
+function EventModal({ onClose, onSubmit, X, CheckCircle }) {
   const initialEventData = {
     title: '',
     date: '',
@@ -174,7 +176,7 @@ function EventModal({ onClose, onSubmit }) {
   const titleRef = useRef(null);
   
   // Focus on title input when modal opens
-  useState(() => {
+  useEffect(() => {
     if (titleRef.current) {
       titleRef.current.focus();
     }
