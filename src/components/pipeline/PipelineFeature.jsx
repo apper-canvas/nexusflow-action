@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-toastify';
 import { format } from 'date-fns';
 import getIcon from '../../utils/iconUtils';
+import { fetchDeals, createDeal, updateDeal, deleteDeal } from '../../services/dealService';
 
 // This component implements a Sales Pipeline feature with drag and drop deal management
 export default function PipelineFeature() {
@@ -21,6 +22,7 @@ export default function PipelineFeature() {
   const Info = getIcon('Info');
   const CheckCircle2 = getIcon('CheckCircle2');
   const X = getIcon('X');
+  const Search = getIcon('Search');
   
   // Pipeline stages
   const stages = [
@@ -31,77 +33,9 @@ export default function PipelineFeature() {
     { id: 'closed', name: 'Closed Won', color: 'bg-green-500' }
   ];
   
-  // Initial deals state with sample data
-  const initialDeals = [
-    {
-      id: '1',
-      title: 'Enterprise Software License',
-      customer: 'Acme Corporation',
-      value: 75000,
-      stage: 'lead',
-      probability: 20,
-      expectedCloseDate: '2023-12-15',
-      type: 'company',
-      contact: 'John Smith',
-      email: 'john@acmecorp.com',
-      phone: '(555) 123-4567'
-    },
-    {
-      id: '2',
-      title: 'Marketing Automation Package',
-      customer: 'TechStart Inc',
-      value: 28500,
-      stage: 'qualified',
-      probability: 40,
-      expectedCloseDate: '2023-11-30',
-      type: 'company',
-      contact: 'Sarah Johnson',
-      email: 'sarah@techstart.io',
-      phone: '(555) 987-6543'
-    },
-    {
-      id: '3',
-      title: 'Consulting Services',
-      customer: 'Global Solutions',
-      value: 120000,
-      stage: 'proposal',
-      probability: 60,
-      expectedCloseDate: '2024-01-20',
-      type: 'company',
-      contact: 'Michael Chen',
-      email: 'mchen@globalsolutions.com',
-      phone: '(555) 456-7890'
-    },
-    {
-      id: '4',
-      title: 'Data Migration Project',
-      customer: 'InnovateTech',
-      value: 45000,
-      stage: 'negotiation',
-      probability: 80,
-      expectedCloseDate: '2023-12-05',
-      type: 'company',
-      contact: 'Lisa Wong',
-      email: 'lwong@innovatetech.com',
-      phone: '(555) 789-0123'
-    },
-    {
-      id: '5',
-      title: 'Annual Support Contract',
-      customer: 'First Financial',
-      value: 36000,
-      stage: 'closed',
-      probability: 100,
-      expectedCloseDate: '2023-11-15',
-      type: 'company',
-      contact: 'Robert Taylor',
-      email: 'rtaylor@firstfinancial.com',
-      phone: '(555) 234-5678'
-    }
-  ];
-  
   // State management
-  const [deals, setDeals] = useState(initialDeals);
+  const [deals, setDeals] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [newDeal, setNewDeal] = useState({
     title: '',
     customer: '',
@@ -119,6 +53,54 @@ export default function PipelineFeature() {
   const [selectedDeal, setSelectedDeal] = useState(null);
   const [formErrors, setFormErrors] = useState({});
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // Load deals when component mounts
+  useEffect(() => {
+    loadDeals();
+  }, []);
+  
+  // Debounce search
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      loadDeals();
+    }, 500);
+    
+    return () => clearTimeout(handler);
+  }, [searchTerm]);
+  
+  // Load deals from API
+  const loadDeals = async () => {
+    setLoading(true);
+    try {
+      const filters = {
+        searchTerm
+      };
+      
+      const { data } = await fetchDeals(filters);
+      
+      // Map API data structure to component structure
+      const mappedDeals = data.map(deal => ({
+        id: deal.Id.toString(),
+        title: deal.title || deal.Name,
+        customer: deal.customer,
+        value: deal.value,
+        stage: deal.stage,
+        probability: deal.probability,
+        expectedCloseDate: deal.expectedCloseDate,
+        type: deal.type,
+        contact: deal.contact,
+        email: deal.email,
+        phone: deal.phone
+      }));
+      
+      setDeals(mappedDeals);
+    } catch (error) {
+      console.error('Error loading deals:', error);
+      toast.error('Failed to load deals');
+    } finally {
+      setLoading(false);
+    }
+  };
   
   // Filter deals based on search term
   const filteredDeals = deals.filter(deal => {
@@ -144,37 +126,45 @@ export default function PipelineFeature() {
     e.preventDefault();
   };
   
-  const handleDrop = (stageId) => {
+  const handleDrop = async (stageId) => {
     if (draggedDealId) {
-      const updatedDeals = deals.map(deal => {
-        if (deal.id === draggedDealId) {
-          // Update probability based on stage
-          let probability;
-          switch (stageId) {
-            case 'lead': probability = 20; break;
-            case 'qualified': probability = 40; break;
-            case 'proposal': probability = 60; break;
-            case 'negotiation': probability = 80; break;
-            case 'closed': probability = 100; break;
-            default: probability = deal.probability;
-          }
-          
-          return { ...deal, stage: stageId, probability };
-        }
-        return deal;
-      });
-      
-      setDeals(updatedDeals);
-      
-      // Get the deal and stage names for the toast
       const deal = deals.find(d => d.id === draggedDealId);
-      const stage = stages.find(s => s.id === stageId);
+      if (!deal) return;
       
-      if (deal && stage) {
-        toast.success(`Moved ${deal.title} to ${stage.name} stage`, {
-          position: "bottom-right",
-          autoClose: 3000,
-        });
+      // Update probability based on stage
+      let probability;
+      switch (stageId) {
+        case 'lead': probability = 20; break;
+        case 'qualified': probability = 40; break;
+        case 'proposal': probability = 60; break;
+        case 'negotiation': probability = 80; break;
+        case 'closed': probability = 100; break;
+        default: probability = deal.probability;
+      }
+      
+      try {
+        // Update in backend
+        const updatedDealData = {
+          ...deal,
+          stage: stageId,
+          probability
+        };
+        
+        const result = await updateDeal(parseInt(draggedDealId), updatedDealData);
+        
+        if (result) {
+          // Update local state
+          setDeals(deals.map(d => d.id === draggedDealId ? {...d, stage: stageId, probability} : d));
+          
+          // Get the stage name for the toast
+          const stage = stages.find(s => s.id === stageId);
+          if (stage) {
+            toast.success(`Moved ${deal.title} to ${stage.name} stage`);
+          }
+        }
+      } catch (error) {
+        console.error('Error updating deal stage:', error);
+        toast.error('Failed to update deal stage');
       }
       
       setDraggedDealId(null);
@@ -210,45 +200,72 @@ export default function PipelineFeature() {
     return Object.keys(errors).length === 0;
   };
   
-  const handleAddDeal = () => {
+  const handleAddDeal = async () => {
     if (!validateForm()) return;
     
-    const newId = (Math.max(...deals.map(deal => parseInt(deal.id)), 0) + 1).toString();
-    
-    setDeals([...deals, { ...newDeal, id: newId }]);
-    
-    // Reset form and close modal
-    setNewDeal({
-      title: '',
-      customer: '',
-      value: '',
-      stage: 'lead',
-      probability: 20,
-      expectedCloseDate: format(new Date(), 'yyyy-MM-dd'),
-      type: 'company',
-      contact: '',
-      email: '',
-      phone: ''
-    });
-    
-    setIsAddModalOpen(false);
-    
-    toast.success('New deal added successfully!', {
-      position: "bottom-right",
-      autoClose: 3000,
-    });
+    try {
+      // Prepare data for API
+      const dealData = {
+        Name: newDeal.title,
+        title: newDeal.title,
+        customer: newDeal.customer,
+        value: parseFloat(newDeal.value),
+        stage: newDeal.stage,
+        probability: parseInt(newDeal.probability),
+        expectedCloseDate: newDeal.expectedCloseDate,
+        type: newDeal.type,
+        contact: newDeal.contact,
+        email: newDeal.email,
+        phone: newDeal.phone
+      };
+      
+      const result = await createDeal(dealData);
+      
+      if (result) {
+        // Add to local state with the returned ID
+        const newDealWithId = {
+          ...newDeal,
+          id: result.Id.toString()
+        };
+        
+        setDeals([...deals, newDealWithId]);
+        
+        // Reset form and close modal
+        setNewDeal({
+          title: '',
+          customer: '',
+          value: '',
+          stage: 'lead',
+          probability: 20,
+          expectedCloseDate: format(new Date(), 'yyyy-MM-dd'),
+          type: 'company',
+          contact: '',
+          email: '',
+          phone: ''
+        });
+        
+        setIsAddModalOpen(false);
+      }
+    } catch (error) {
+      console.error('Error adding deal:', error);
+    }
   };
   
-  const handleDeleteDeal = (id) => {
+  const handleDeleteDeal = async (id) => {
     const dealToDelete = deals.find(deal => deal.id === id);
     
     if (confirm(`Are you sure you want to delete the deal "${dealToDelete.title}"?`)) {
-      setDeals(deals.filter(deal => deal.id !== id));
-      
-      toast.info('Deal deleted successfully', {
-        position: "bottom-right",
-        autoClose: 3000,
-      });
+      try {
+        const result = await deleteDeal(parseInt(id));
+        
+        if (result) {
+          setDeals(deals.filter(deal => deal.id !== id));
+          
+          toast.info('Deal deleted successfully');
+        }
+      } catch (error) {
+        console.error('Error deleting deal:', error);
+      }
     }
   };
   
@@ -312,93 +329,99 @@ export default function PipelineFeature() {
         </div>
       </div>
       
-      {/* Pipeline Board */}
-      <div className="overflow-x-auto pb-4">
-        <div className="grid grid-cols-1 md:grid-flow-col md:auto-cols-fr gap-4 min-w-[800px]">
-          {stages.map(stage => (
-            <div
-              key={stage.id}
-              className="flex flex-col h-full"
-              onDragOver={handleDragOver}
-              onDrop={() => handleDrop(stage.id)}
-            >
-              {/* Stage Header */}
-              <div className="flex items-center justify-between p-3 bg-white dark:bg-surface-800 rounded-t-lg shadow-sm border-b-2 border-b-surface-200 dark:border-b-surface-700">
-                <div className="flex items-center">
-                  <div className={`w-3 h-3 rounded-full ${stage.color} mr-2`}></div>
-                  <h3 className="font-semibold">{stage.name}</h3>
-                </div>
-                <div className="text-sm text-surface-500 dark:text-surface-400">
-                  ${calculatePipelineValue(stage.id).toLocaleString()}
-                </div>
-              </div>
-              
-              {/* Stage Body */}
+      {loading ? (
+        <div className="flex justify-center p-8">
+          <p className="text-surface-500 dark:text-surface-400">Loading deals...</p>
+        </div>
+      ) : (
+        /* Pipeline Board */
+        <div className="overflow-x-auto pb-4">
+          <div className="grid grid-cols-1 md:grid-flow-col md:auto-cols-fr gap-4 min-w-[800px]">
+            {stages.map(stage => (
               <div
-                className="flex-1 bg-surface-100/50 dark:bg-surface-800/50 rounded-b-lg p-2 min-h-[300px]"
+                key={stage.id}
+                className="flex flex-col h-full"
+                onDragOver={handleDragOver}
+                onDrop={() => handleDrop(stage.id)}
               >
-                {getDealsByStage(stage.id).length === 0 ? (
-                  <div className="text-center p-4 text-surface-400 dark:text-surface-500 text-sm italic">
-                    No deals in this stage
+                {/* Stage Header */}
+                <div className="flex items-center justify-between p-3 bg-white dark:bg-surface-800 rounded-t-lg shadow-sm border-b-2 border-b-surface-200 dark:border-b-surface-700">
+                  <div className="flex items-center">
+                    <div className={`w-3 h-3 rounded-full ${stage.color} mr-2`}></div>
+                    <h3 className="font-semibold">{stage.name}</h3>
                   </div>
-                ) : (
-                  <div className="space-y-3">
-                    {getDealsByStage(stage.id).map(deal => (
-                      <motion.div
-                        key={deal.id}
-                        layoutId={`deal-${deal.id}`}
-                        draggable
-                        onDragStart={() => handleDragStart(deal.id)}
-                        onClick={() => handleViewDeal(deal)}
-                        className="card p-3 cursor-grab active:cursor-grabbing hover:shadow-soft group"
-                        whileHover={{ scale: 1.02 }}
-                        transition={{ type: "spring", stiffness: 400, damping: 10 }}
-                      >
-                        <div className="mb-2 flex items-start justify-between">
-                          <h4 className="font-medium text-sm md:text-base line-clamp-2">{deal.title}</h4>
-                          <div className="opacity-0 group-hover:opacity-100 transition-opacity flex">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteDeal(deal.id);
-                              }}
-                              className="p-1 text-surface-500 hover:text-accent transition-colors"
-                              aria-label="Delete deal"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center gap-1 text-xs text-surface-500 dark:text-surface-400 mb-2">
-                          {deal.type === 'company' ? (
-                            <Building size={12} />
-                          ) : (
-                            <User size={12} />
-                          )}
-                          <span className="line-clamp-1">{deal.customer}</span>
-                        </div>
-                        
-                        <div className="flex justify-between items-center">
-                          <div className="flex items-center bg-surface-100 dark:bg-surface-700 px-2 py-1 rounded text-xs font-medium">
-                            <DollarSign size={12} className="mr-1" />
-                            {Number(deal.value).toLocaleString()}
+                  <div className="text-sm text-surface-500 dark:text-surface-400">
+                    ${calculatePipelineValue(stage.id).toLocaleString()}
+                  </div>
+                </div>
+                
+                {/* Stage Body */}
+                <div
+                  className="flex-1 bg-surface-100/50 dark:bg-surface-800/50 rounded-b-lg p-2 min-h-[300px]"
+                >
+                  {getDealsByStage(stage.id).length === 0 ? (
+                    <div className="text-center p-4 text-surface-400 dark:text-surface-500 text-sm italic">
+                      No deals in this stage
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {getDealsByStage(stage.id).map(deal => (
+                        <motion.div
+                          key={deal.id}
+                          layoutId={`deal-${deal.id}`}
+                          draggable
+                          onDragStart={() => handleDragStart(deal.id)}
+                          onClick={() => handleViewDeal(deal)}
+                          className="card p-3 cursor-grab active:cursor-grabbing hover:shadow-soft group"
+                          whileHover={{ scale: 1.02 }}
+                          transition={{ type: "spring", stiffness: 400, damping: 10 }}
+                        >
+                          <div className="mb-2 flex items-start justify-between">
+                            <h4 className="font-medium text-sm md:text-base line-clamp-2">{deal.title}</h4>
+                            <div className="opacity-0 group-hover:opacity-100 transition-opacity flex">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteDeal(deal.id);
+                                }}
+                                className="p-1 text-surface-500 hover:text-accent transition-colors"
+                                aria-label="Delete deal"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
                           </div>
                           
-                          <div className="text-xs">
-                            {deal.probability}% 
-                            <span className="ml-1 text-surface-400">likely</span>
+                          <div className="flex items-center gap-1 text-xs text-surface-500 dark:text-surface-400 mb-2">
+                            {deal.type === 'company' ? (
+                              <Building size={12} />
+                            ) : (
+                              <User size={12} />
+                            )}
+                            <span className="line-clamp-1">{deal.customer}</span>
                           </div>
-                        </div>
-                      </motion.div>
-                    ))}
-                  </div>
-                )}
+                          
+                          <div className="flex justify-between items-center">
+                            <div className="flex items-center bg-surface-100 dark:bg-surface-700 px-2 py-1 rounded text-xs font-medium">
+                              <DollarSign size={12} className="mr-1" />
+                              {Number(deal.value).toLocaleString()}
+                            </div>
+                            
+                            <div className="text-xs">
+                              {deal.probability}% 
+                              <span className="ml-1 text-surface-400">likely</span>
+                            </div>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
+      )}
       
       {/* Add Deal Modal */}
       <AnimatePresence>
