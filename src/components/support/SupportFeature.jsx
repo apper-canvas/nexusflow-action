@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import getIcon from '../../utils/iconUtils';
 import { toast } from 'react-toastify';
-import { fetchSupportTickets, createSupportTicket, updateSupportTicket, deleteSupportTicket } from '../../services/supportTicketService';
 
 export default function SupportFeature() {
   // Icon components
@@ -20,43 +19,58 @@ export default function SupportFeature() {
   // State for modal
   const [showModal, setShowModal] = useState(false);
   
-  // State for data
-  const [tickets, setTickets] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // Sample support tickets
+  const tickets = [
+    {
+      id: 'TKT-1001',
+      subject: 'Issue with payment processing',
+      customer: 'John Smith',
+      company: 'Acme Corporation',
+      status: 'open',
+      priority: 'high',
+      createdAt: '2023-08-10T09:24:00',
+      lastUpdated: '2023-08-10T14:30:00',
+      assignedTo: 'Sarah Johnson'
+    },
+    {
+      id: 'TKT-1002',
+      subject: 'Need assistance with account setup',
+      customer: 'Lisa Wong',
+      company: 'InnovateTech',
+      status: 'in-progress',
+      priority: 'medium',
+      createdAt: '2023-08-09T15:12:00',
+      lastUpdated: '2023-08-10T11:45:00',
+      assignedTo: 'Michael Chen'
+    },
+    {
+      id: 'TKT-1003',
+      subject: 'Data import failed',
+      customer: 'Robert Taylor',
+      company: 'First Financial',
+      status: 'open',
+      priority: 'critical',
+      createdAt: '2023-08-10T08:05:00',
+      lastUpdated: '2023-08-10T08:05:00',
+      assignedTo: 'Unassigned'
+    },
+    {
+      id: 'TKT-1004',
+      subject: 'Feature request: Add export to CSV',
+      customer: 'Emily Davis',
+      company: 'Global Solutions',
+      status: 'resolved',
+      priority: 'low',
+      createdAt: '2023-08-05T10:30:00',
+      lastUpdated: '2023-08-08T16:20:00',
+      assignedTo: 'Sarah Johnson'
+    }
+  ];
+  const [ticketsList, setTicketsList] = useState(tickets);
+  
+  // Search and filter state
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [filterOpen, setFilterOpen] = useState(false);
-  
-  // Load tickets
-  useEffect(() => {
-    loadTickets();
-  }, [statusFilter]);
-  
-  // Debounce search
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      loadTickets();
-    }, 500);
-    
-    return () => clearTimeout(handler);
-  }, [searchTerm]);
-  
-  const loadTickets = async () => {
-    setLoading(true);
-    try {
-      const filters = {
-        searchTerm,
-        status: statusFilter !== 'all' ? statusFilter : undefined
-      };
-      
-      const { data } = await fetchSupportTickets(filters);
-      setTickets(data);
-    } catch (error) {
-      console.error('Error loading support tickets:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
   
   // Priority and status styling
   const getPriorityBadge = (priority) => {
@@ -79,6 +93,17 @@ export default function SupportFeature() {
     }
   };
   
+  // Filter tickets
+  const filteredTickets = ticketsList.filter(ticket => {
+    const matchesSearch = ticket.subject.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          ticket.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          ticket.id.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesStatus = statusFilter === 'all' || ticket.status === statusFilter;
+    
+    return matchesSearch && matchesStatus;
+  });
+  
   // Format date relative to now
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -93,43 +118,22 @@ export default function SupportFeature() {
   };
   
   // Add new ticket function
-  const addNewTicket = async (ticketData) => {
-    try {
-      const result = await createSupportTicket({
-        Name: ticketData.subject,
-        subject: ticketData.subject,
-        customer: ticketData.customer,
-        company: ticketData.company,
-        status: 'open',
-        priority: ticketData.priority,
-        description: ticketData.description,
-        assignedTo: 'Unassigned'
-      });
-      
-      if (result) {
-        // Refresh ticket list
-        await loadTickets();
-        setShowModal(false);
-      }
-    } catch (error) {
-      console.error('Error creating support ticket:', error);
-    }
-  };
-  
-  // Delete ticket function
-  const handleDeleteTicket = async (id) => {
-    if (confirm('Are you sure you want to delete this ticket?')) {
-      try {
-        const result = await deleteSupportTicket(id);
-        
-        if (result) {
-          // Remove from local state
-          setTickets(tickets.filter(t => t.Id !== id));
-        }
-      } catch (error) {
-        console.error('Error deleting ticket:', error);
-      }
-    }
+  const addNewTicket = (ticketData) => {
+    const newTicket = {
+      id: `TKT-${1000 + ticketsList.length + 1}`,
+      subject: ticketData.subject,
+      customer: ticketData.customer,
+      company: ticketData.company,
+      status: 'open',
+      priority: ticketData.priority,
+      createdAt: new Date().toISOString(),
+      lastUpdated: new Date().toISOString(),
+      assignedTo: 'Unassigned'
+    };
+    
+    setTicketsList(prev => [newTicket, ...prev]);
+    setShowModal(false);
+    toast.success('New support ticket created successfully!');
   };
   
   // Ticket Modal Component
@@ -331,64 +335,41 @@ export default function SupportFeature() {
           <div className="relative">
             <button 
               className="btn btn-outline flex items-center gap-2"
-              onClick={() => setFilterOpen(!filterOpen)}
+              onClick={() => setStatusFilter(prev => prev === 'all' ? 'open' : 'all')}
             >
               <Filter size={16} />
-              <span>{statusFilter === 'all' ? 'All Tickets' : statusFilter === 'open' ? 'Open' : statusFilter === 'in-progress' ? 'In Progress' : statusFilter === 'resolved' ? 'Resolved' : 'Closed'}</span>
+              <span>{statusFilter === 'all' ? 'All Tickets' : statusFilter === 'open' ? 'Open' : statusFilter === 'in-progress' ? 'In Progress' : 'Resolved'}</span>
               <ChevronDown size={16} />
             </button>
             
-            {filterOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-surface-800 rounded-lg shadow-lg z-10 border border-surface-200 dark:border-surface-700 overflow-hidden">
-                <div className="py-1">
-                  <button 
-                    onClick={() => {
-                      setStatusFilter('all');
-                      setFilterOpen(false);
-                    }} 
-                    className={`block px-4 py-2 text-sm w-full text-left hover:bg-surface-100 dark:hover:bg-surface-700 ${statusFilter === 'all' ? 'bg-surface-100 dark:bg-surface-700' : ''}`}
-                  >
-                    All Tickets
-                  </button>
-                  <button 
-                    onClick={() => {
-                      setStatusFilter('open');
-                      setFilterOpen(false);
-                    }} 
-                    className={`block px-4 py-2 text-sm w-full text-left hover:bg-surface-100 dark:hover:bg-surface-700 ${statusFilter === 'open' ? 'bg-surface-100 dark:bg-surface-700' : ''}`}
-                  >
-                    Open
-                  </button>
-                  <button 
-                    onClick={() => {
-                      setStatusFilter('in-progress');
-                      setFilterOpen(false);
-                    }} 
-                    className={`block px-4 py-2 text-sm w-full text-left hover:bg-surface-100 dark:hover:bg-surface-700 ${statusFilter === 'in-progress' ? 'bg-surface-100 dark:bg-surface-700' : ''}`}
-                  >
-                    In Progress
-                  </button>
-                  <button 
-                    onClick={() => {
-                      setStatusFilter('resolved');
-                      setFilterOpen(false);
-                    }} 
-                    className={`block px-4 py-2 text-sm w-full text-left hover:bg-surface-100 dark:hover:bg-surface-700 ${statusFilter === 'resolved' ? 'bg-surface-100 dark:bg-surface-700' : ''}`}
-                  >
-                    Resolved
-                  </button>
-                  <button 
-                    onClick={() => {
-                      setStatusFilter('closed');
-                      setFilterOpen(false);
-                    }} 
-                    className={`block px-4 py-2 text-sm w-full text-left hover:bg-surface-100 dark:hover:bg-surface-700 ${statusFilter === 'closed' ? 'bg-surface-100 dark:bg-surface-700' : ''}`}
-                  >
-                    Closed
-                  </button>
-                </div>
+            <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-surface-800 rounded-lg shadow-lg z-10 border border-surface-200 dark:border-surface-700 overflow-hidden">
+              <div className="py-1">
+                <button 
+                  onClick={() => setStatusFilter('all')} 
+                  className={`block px-4 py-2 text-sm w-full text-left hover:bg-surface-100 dark:hover:bg-surface-700 ${statusFilter === 'all' ? 'bg-surface-100 dark:bg-surface-700' : ''}`}
+                >
+                  All Tickets
+                </button>
+                <button 
+                  onClick={() => setStatusFilter('open')} 
+                  className={`block px-4 py-2 text-sm w-full text-left hover:bg-surface-100 dark:hover:bg-surface-700 ${statusFilter === 'open' ? 'bg-surface-100 dark:bg-surface-700' : ''}`}
+                >
+                  Open
+                </button>
+                <button 
+                  onClick={() => setStatusFilter('in-progress')} 
+                  className={`block px-4 py-2 text-sm w-full text-left hover:bg-surface-100 dark:hover:bg-surface-700 ${statusFilter === 'in-progress' ? 'bg-surface-100 dark:bg-surface-700' : ''}`}
+                >
+                  In Progress
+                </button>
+                <button 
+                  onClick={() => setStatusFilter('resolved')} 
+                  className={`block px-4 py-2 text-sm w-full text-left hover:bg-surface-100 dark:hover:bg-surface-700 ${statusFilter === 'resolved' ? 'bg-surface-100 dark:bg-surface-700' : ''}`}
+                >
+                  Resolved
+                </button>
               </div>
-            )}
+            </div>
           </div>
           
           <button 
@@ -403,56 +384,37 @@ export default function SupportFeature() {
       </div>
       
       {/* Tickets list */}
-      {loading ? (
-        <div className="flex justify-center p-8">
-          <p className="text-surface-500">Loading tickets...</p>
-        </div>
-      ) : tickets.length === 0 ? (
-        <div className="card p-6 text-center">
-          <p className="text-surface-500">No tickets found. Try adjusting your search or create a new ticket.</p>
-        </div>
-      ) : (
-        <div className="bg-white dark:bg-surface-800 rounded-xl shadow-card overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-surface-200 dark:divide-surface-700">
-              <thead className="bg-surface-50 dark:bg-surface-900">
-                <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-surface-500 uppercase tracking-wider">Ticket</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-surface-500 uppercase tracking-wider">Customer</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-surface-500 uppercase tracking-wider">Status</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-surface-500 uppercase tracking-wider">Priority</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-surface-500 uppercase tracking-wider">Last Updated</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-surface-500 uppercase tracking-wider">Actions</th>
+      <div className="bg-white dark:bg-surface-800 rounded-xl shadow-card overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-surface-200 dark:divide-surface-700">
+            <thead className="bg-surface-50 dark:bg-surface-900">
+              <tr>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-surface-500 uppercase tracking-wider">Ticket</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-surface-500 uppercase tracking-wider">Customer</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-surface-500 uppercase tracking-wider">Status</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-surface-500 uppercase tracking-wider">Priority</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-surface-500 uppercase tracking-wider">Last Updated</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white dark:bg-surface-800 divide-y divide-surface-200 dark:divide-surface-700">
+              {filteredTickets.map(ticket => (
+                <tr key={ticket.id} className="hover:bg-surface-50 dark:hover:bg-surface-700 cursor-pointer">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex flex-col">
+                      <div className="text-sm font-medium">{ticket.subject}</div>
+                      <div className="text-xs text-surface-500">{ticket.id}</div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm">{ticket.customer} <span className="text-surface-500">• {ticket.company}</span></td>
+                  <td className="px-6 py-4 whitespace-nowrap"><span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadge(ticket.status)}`}>{ticket.status.replace('-', ' ')}</span></td>
+                  <td className="px-6 py-4 whitespace-nowrap"><span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getPriorityBadge(ticket.priority)}`}>{ticket.priority}</span></td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-surface-500">{formatDate(ticket.lastUpdated)}</td>
                 </tr>
-              </thead>
-              <tbody className="bg-white dark:bg-surface-800 divide-y divide-surface-200 dark:divide-surface-700">
-                {tickets.map(ticket => (
-                  <tr key={ticket.Id} className="hover:bg-surface-50 dark:hover:bg-surface-700">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex flex-col">
-                        <div className="text-sm font-medium">{ticket.subject}</div>
-                        <div className="text-xs text-surface-500">#{ticket.Id}</div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">{ticket.customer} <span className="text-surface-500">• {ticket.company}</span></td>
-                    <td className="px-6 py-4 whitespace-nowrap"><span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadge(ticket.status)}`}>{ticket.status.replace('-', ' ')}</span></td>
-                    <td className="px-6 py-4 whitespace-nowrap"><span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getPriorityBadge(ticket.priority)}`}>{ticket.priority}</span></td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-surface-500">{formatDate(ticket.ModifiedOn || ticket.CreatedOn)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <button
-                        onClick={() => handleDeleteTicket(ticket.Id)}
-                        className="text-surface-400 hover:text-red-500"
-                      >
-                        <X size={16} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </table>
         </div>
-      )}
+      </div>
       
       {/* New Ticket Modal */}
       <AnimatePresence>

@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-toastify';
 import getIcon from '../../utils/iconUtils';
-import { fetchCampaigns, createCampaign, updateCampaign, deleteCampaign } from '../../services/campaignService';
 
 export default function CampaignsFeature() {
   // Icon components
@@ -21,13 +20,65 @@ export default function CampaignsFeature() {
   const Target = getIcon('Target');
   const Filter = getIcon('Filter');
   
-  // State management
-  const [campaigns, setCampaigns] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // Sample campaigns data
+  const campaigns = [
+    {
+      id: 1,
+      name: 'Summer Promotion',
+      type: 'email',
+      status: 'active',
+      sent: 2450,
+      opened: 1203,
+      clicked: 348,
+      converted: 42,
+      startDate: '2023-07-15',
+      endDate: '2023-08-15'
+    },
+    {
+      id: 2,
+      name: 'Product Launch - Enterprise CRM',
+      type: 'email',
+      status: 'scheduled',
+      sent: 0,
+      opened: 0,
+      clicked: 0,
+      converted: 0,
+      startDate: '2023-09-01',
+      endDate: '2023-09-15'
+    },
+    {
+      id: 3,
+      name: 'Customer Feedback Survey',
+      type: 'email',
+      status: 'completed',
+      sent: 1850,
+      opened: 945,
+      clicked: 523,
+      converted: 105,
+      startDate: '2023-06-01',
+      endDate: '2023-06-15'
+    },
+    {
+      id: 4,
+      name: 'Early Bird Discount',
+      type: 'email',
+      status: 'draft',
+      sent: 0,
+      opened: 0,
+      clicked: 0,
+      converted: 0,
+      startDate: '',
+      endDate: ''
+    }
+  ];
+  
+  // Search state
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [campaignData, setCampaignData] = useState({
-    Name: '',
+    name: '',
     type: 'email',
     status: 'draft',
     sent: 0,
@@ -38,40 +89,13 @@ export default function CampaignsFeature() {
     endDate: ''
   });
   
-  // Load campaigns
-  useEffect(() => {
-    loadCampaigns();
-  }, []);
-  
-  // Debounce search
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      loadCampaigns();
-    }, 500);
-    
-    return () => clearTimeout(handler);
-  }, [searchTerm]);
-  
-  const loadCampaigns = async () => {
-    setLoading(true);
-    try {
-      const filters = {
-        searchTerm
-      };
-      
-      const { data } = await fetchCampaigns(filters);
-      setCampaigns(data);
-    } catch (error) {
-      console.error('Error loading campaigns:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-  
   // Filter campaigns
-  const filteredCampaigns = campaigns.filter(campaign => 
-    campaign.Name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const [filteredCampaigns, setFilteredCampaigns] = useState(campaigns);
+  useEffect(() => {
+    setFilteredCampaigns(campaigns.filter(campaign => 
+    campaign.name.toLowerCase().includes(searchTerm.toLowerCase())
+  ));
+  }, [searchTerm, campaigns]);
   
   // Status badge color
   const getStatusColor = (status) => {
@@ -95,7 +119,7 @@ export default function CampaignsFeature() {
   
   // Form validation
   const validateForm = () => {
-    if (!campaignData.Name.trim()) {
+    if (!campaignData.name.trim()) {
       toast.error("Campaign name is required");
       return false;
     }
@@ -113,51 +137,24 @@ export default function CampaignsFeature() {
   };
   
   // Handle form submission
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
     
     if (!validateForm()) return;
     
-    try {
-      const result = await createCampaign(campaignData);
-      
-      if (result) {
-        // Refresh campaigns list
-        await loadCampaigns();
-        
-        // Close modal and reset form
-        setIsModalOpen(false);
-        setCampaignData({
-          Name: '',
-          type: 'email',
-          status: 'draft',
-          sent: 0,
-          opened: 0,
-          clicked: 0,
-          converted: 0,
-          startDate: '',
-          endDate: ''
-        });
-      }
-    } catch (error) {
-      console.error('Error creating campaign:', error);
-    }
-  };
-  
-  // Handle delete campaign
-  const handleDeleteCampaign = async (id) => {
-    if (confirm('Are you sure you want to delete this campaign?')) {
-      try {
-        const result = await deleteCampaign(id);
-        
-        if (result) {
-          // Remove from local state
-          setCampaigns(campaigns.filter(c => c.Id !== id));
-        }
-      } catch (error) {
-        console.error('Error deleting campaign:', error);
-      }
-    }
+    const newCampaign = {
+      id: campaigns.length + 1,
+      ...campaignData
+    };
+    
+    // Update campaigns list
+    campaigns.push(newCampaign);
+    setFilteredCampaigns([...filteredCampaigns, newCampaign]);
+    
+    // Close modal and reset form
+    setIsModalOpen(false);
+    toast.success("Campaign created successfully!");
+    setCampaignData({ name: '', type: 'email', status: 'draft', sent: 0, opened: 0, clicked: 0, converted: 0, startDate: '', endDate: '' });
   };
   
   return (
@@ -188,57 +185,19 @@ export default function CampaignsFeature() {
       
       {/* Campaigns List */}
       <div className="space-y-4">
-        {loading ? (
-          <div className="flex justify-center p-8">
-            <p className="text-surface-500">Loading campaigns...</p>
-          </div>
-        ) : filteredCampaigns.length === 0 ? (
-          <div className="card p-6 text-center">
-            <p className="text-surface-500">No campaigns found. Try adjusting your search or create a new campaign.</p>
-          </div>
-        ) : (
-          filteredCampaigns.map(campaign => (
-            <motion.div 
-              key={campaign.Id}
-              className="card p-4 hover:shadow-soft cursor-pointer"
-              whileHover={{ y: -2 }}
-              transition={{ type: "spring", stiffness: 400, damping: 10 }}
-            >
-              <div className="flex justify-between items-start">
-                <h3 className="font-medium">{campaign.Name}</h3>
-                <div className={`px-2 py-1 rounded-full text-xs text-white font-medium ${getStatusColor(campaign.status)}`}>{campaign.status}</div>
-              </div>
-              
-              <div className="mt-3 flex flex-wrap gap-4 text-sm text-surface-500">
-                <div className="flex items-center">
-                  <Mail size={14} className="mr-1" />
-                  {campaign.type}
-                </div>
-                
-                {campaign.startDate && (
-                  <div className="flex items-center">
-                    <Calendar size={14} className="mr-1" />
-                    {new Date(campaign.startDate).toLocaleDateString()}
-                  </div>
-                )}
-                
-                <div className="flex items-center">
-                  <Target size={14} className="mr-1" />
-                  {campaign.sent} sent, {campaign.converted} converted
-                </div>
-              </div>
-              
-              <div className="mt-3 flex justify-end">
-                <button
-                  onClick={() => handleDeleteCampaign(campaign.Id)}
-                  className="text-surface-400 hover:text-red-500 p-1"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-            </motion.div>
-          ))
-        )}
+        {filteredCampaigns.map(campaign => (
+          <motion.div 
+            key={campaign.id}
+            className="card p-4 hover:shadow-soft cursor-pointer"
+            whileHover={{ y: -2 }}
+            transition={{ type: "spring", stiffness: 400, damping: 10 }}
+          >
+            <div className="flex justify-between items-start">
+              <h3 className="font-medium">{campaign.name}</h3>
+              <div className={`px-2 py-1 rounded-full text-xs text-white font-medium ${getStatusColor(campaign.status)}`}>{campaign.status}</div>
+            </div>
+          </motion.div>
+        ))}
       </div>
       
       {/* Campaign Modal */}
@@ -293,13 +252,13 @@ function CampaignModal({ isOpen, onClose, campaignData, handleInputChange, handl
             className="fixed inset-0 z-50 flex items-center justify-center p-4"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="bg-white dark:bg-surface-800 rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="bg-white dark:bg-base-800 rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
               <div className="p-6 space-y-6">
                 <div className="flex justify-between items-center">
                   <h3 className="text-xl font-bold">Create New Campaign</h3>
                   <button
                     onClick={onClose}
-                    className="p-1 rounded-full hover:bg-surface-100 dark:hover:bg-surface-700 transition-colors"
+                    className="p-1 rounded-full hover:bg-base-100/10 transition-colors"
                   >
                     <X size={20} />
                   </button>
@@ -311,8 +270,8 @@ function CampaignModal({ isOpen, onClose, campaignData, handleInputChange, handl
                     <input
                       ref={initialFocusRef}
                       type="text"
-                      name="Name"
-                      value={campaignData.Name}
+                      name="name"
+                      value={campaignData.name}
                       onChange={handleInputChange}
                       className="w-full p-2 rounded-lg"
                       placeholder="Enter campaign name"
@@ -322,13 +281,13 @@ function CampaignModal({ isOpen, onClose, campaignData, handleInputChange, handl
                   
                   <div className="space-y-1">
                     <label className="text-sm font-medium">Campaign Type</label>
-                    <div className="flex items-center gap-2 p-2 rounded-lg border border-surface-200 dark:border-surface-700">
-                      <Mail size={16} className="text-primary" />
+                    <div className="flex items-center gap-2 p-2 rounded-lg border border-base-200">
+                      <Mail size={16} className="text-primary-500" />
                       <select
                         name="type"
                         value={campaignData.type}
                         onChange={handleInputChange}
-                        className="flex-1 bg-transparent outline-none border-none"
+                        className="flex-1 bg-transparent outline-none"
                       >
                         <option value="email">Email Campaign</option>
                         <option value="social">Social Media Campaign</option>
@@ -378,7 +337,6 @@ function CampaignModal({ isOpen, onClose, campaignData, handleInputChange, handl
                       <option value="draft">Draft</option>
                       <option value="scheduled">Scheduled</option>
                       <option value="active">Active</option>
-                      <option value="completed">Completed</option>
                     </select>
                   </div>
                   
@@ -386,7 +344,7 @@ function CampaignModal({ isOpen, onClose, campaignData, handleInputChange, handl
                     <button
                       type="button"
                       onClick={onClose}
-                      className="px-4 py-2 border border-surface-200 dark:border-surface-700 rounded-lg hover:bg-surface-100 dark:hover:bg-surface-700"
+                      className="btn btn-subtle"
                     >
                       Cancel
                     </button>
