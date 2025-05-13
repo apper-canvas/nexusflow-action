@@ -30,8 +30,8 @@ export default function MessagesFeature() {
   // Sample conversation messages
   const sampleMessages = [
     { id: 1, sender: 'John Smith', isSelf: false, text: 'Hi there! I wanted to follow up on our meeting yesterday.', time: '09:32 AM' },
-    { id: 2, sender: 'You', isSelf: true, text: 'Hi John, sure thing. I've reviewed the proposal and it looks good overall.', time: '09:35 AM' },
-    { id: 3, sender: 'John Smith', isSelf: false, text: 'Great! Do you have any specific feedback or changes you'd like to make?', time: '09:36 AM' },
+    { id: 2, sender: 'You', isSelf: true, text: 'Hi John, sure thing. I\'ve reviewed the proposal and it looks good overall.', time: '09:35 AM' },
+    { id: 3, sender: 'John Smith', isSelf: false, text: 'Great! Do you have any specific feedback or changes you\'d like to make?', time: '09:36 AM' },
     { id: 4, sender: 'You', isSelf: true, text: 'Just a few minor points. I think we should adjust the timeline for the implementation phase. The current schedule seems a bit aggressive.', time: '09:40 AM' },
     { id: 5, sender: 'John Smith', isSelf: false, text: 'That makes sense. How much additional time do you think we need?', time: '09:42 AM' }
   ];
