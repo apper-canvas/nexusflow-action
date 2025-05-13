@@ -363,6 +363,5 @@ function CampaignModal({ isOpen, onClose, campaignData, handleInputChange, handl
         </>
       )}
     </AnimatePresence>
-    </div>
   );
 }
