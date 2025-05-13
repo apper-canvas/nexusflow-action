@@ -18,6 +18,8 @@ export default function ContactsFeature() {
   const Edit = getIcon('Edit');
   const Trash2 = getIcon('Trash2');
   const ChevronDown = getIcon('ChevronDown');
+  const X = getIcon('X');
+  const CheckCircle = getIcon('CheckCircle');
   
   // Sample contacts data
   const initialContacts = [
@@ -82,6 +84,11 @@ export default function ContactsFeature() {
   const [contacts, setContacts] = useState(initialContacts);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedType, setSelectedType] = useState('all');
+  const [isAddContactModalOpen, setIsAddContactModalOpen] = useState(false);
+  
+  const openAddContactModal = () => setIsAddContactModalOpen(true);
+  const closeAddContactModal = () => setIsAddContactModalOpen(false);
+  
   
   // Filter contacts
   const filteredContacts = contacts.filter(contact => {
@@ -104,6 +111,43 @@ export default function ContactsFeature() {
     if (contact) {
       toast.success(`${contact.name} ${contact.favorite ? 'removed from' : 'added to'} favorites`);
     }
+  };
+  
+  // Handle new contact submission
+  const handleAddContact = (newContact) => {
+    // Create a new contact with an ID
+    const contactToAdd = {
+      ...newContact,
+      id: contacts.length > 0 ? Math.max(...contacts.map(c => c.id)) + 1 : 1,
+      favorite: false
+    };
+    
+    // Add to contacts list
+    setContacts([...contacts, contactToAdd]);
+    
+    // Show success message
+    toast.success(`${newContact.name} has been added to contacts`);
+    
+    // Close the modal
+    closeAddContactModal();
+  };
+  
+  const contactTypes = [
+    { value: "client", label: "Client" },
+    { value: "lead", label: "Lead" },
+    { value: "vendor", label: "Vendor" },
+  ];
+  
+  const statusOptions = [
+    { value: "active", label: "Active" },
+    { value: "inactive", label: "Inactive" },
+  ];
+  
+  // Animation variants for modal
+  const modalVariants = {
+    hidden: { opacity: 0, y: 50 },
+    visible: { opacity: 1, y: 0, transition: { type: "spring", damping: 25, stiffness: 500 } },
+    exit: { opacity: 0, y: 50 }
   };
   
   return (
@@ -139,7 +183,7 @@ export default function ContactsFeature() {
             <ChevronDown size={16} className="absolute right-2.5 top-2.5 text-surface-400" />
           </div>
           
-          <button className="btn btn-primary flex items-center gap-2 whitespace-nowrap">
+          <button onClick={openAddContactModal} className="bg-primary hover:bg-primary-dark text-white py-2 px-4 rounded-lg transition-colors flex items-center gap-2 whitespace-nowrap">
             <Plus size={16} />
             <span className="hidden md:inline">Add Contact</span>
             <span className="md:hidden">Add</span>
@@ -177,6 +221,164 @@ export default function ContactsFeature() {
           ))
         )}
       </div>
+      
+      {/* Add Contact Modal */}
+      {isAddContactModalOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-50 flex items-center justify-center p-4" onClick={closeAddContactModal}>
+          <motion.div 
+            className="bg-white dark:bg-surface-800 rounded-xl shadow-lg w-full max-w-md"
+            onClick={(e) => e.stopPropagation()}
+            variants={modalVariants}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+          >
+            <ContactModal onSubmit={handleAddContact} onCancel={closeAddContactModal} contactTypes={contactTypes} statusOptions={statusOptions} />
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }
+
+// Contact Modal Component
+const ContactModal = ({ onSubmit, onCancel, contactTypes, statusOptions }) => {
+  const initialFormData = {
+    name: '',
+    company: '',
+    email: '',
+    phone: '',
+    type: 'client',
+    location: '',
+    status: 'active'
+  };
+  
+  const [formData, setFormData] = useState(initialFormData);
+  const [errors, setErrors] = useState({});
+  
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData({
+      ...formData,
+      [name]: value
+    });
+    
+    // Clear error when field is edited
+    if (errors[name]) {
+      setErrors({
+        ...errors,
+        [name]: null
+      });
+    }
+  };
+  
+  const validateForm = () => {
+    const newErrors = {};
+    
+    if (!formData.name.trim()) newErrors.name = "Name is required";
+    if (!formData.email.trim()) newErrors.email = "Email is required";
+    if (formData.email && !/^\S+@\S+\.\S+$/.test(formData.email)) 
+      newErrors.email = "Email format is invalid";
+    if (!formData.company.trim()) newErrors.company = "Company is required";
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+  
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    
+    if (validateForm()) {
+      onSubmit(formData);
+      setFormData(initialFormData);
+    }
+  };
+  
+  return (
+    <form onSubmit={handleSubmit} className="p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h3 className="text-xl font-bold">Add New Contact</h3>
+        <button 
+          type="button" 
+          onClick={onCancel}
+          className="text-surface-500 hover:text-surface-700 dark:hover:text-surface-300"
+          aria-label="Close modal"
+        >
+          <X size={20} />
+        </button>
+      </div>
+      
+      <div className="space-y-4">
+        <div>
+          <label htmlFor="name" className="block mb-1 font-medium">Name*</label>
+          <input id="name" name="name" type="text" value={formData.name} onChange={handleChange} 
+            className={`w-full p-2 border rounded-lg ${errors.name ? 'border-red-500' : 'border-surface-200 dark:border-surface-700'}`} />
+          {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
+        </div>
+        
+        <div>
+          <label htmlFor="company" className="block mb-1 font-medium">Company*</label>
+          <input id="company" name="company" type="text" value={formData.company} onChange={handleChange} 
+            className={`w-full p-2 border rounded-lg ${errors.company ? 'border-red-500' : 'border-surface-200 dark:border-surface-700'}`} />
+          {errors.company && <p className="text-red-500 text-sm mt-1">{errors.company}</p>}
+        </div>
+        
+        <div>
+          <label htmlFor="email" className="block mb-1 font-medium">Email*</label>
+          <input id="email" name="email" type="email" value={formData.email} onChange={handleChange} 
+            className={`w-full p-2 border rounded-lg ${errors.email ? 'border-red-500' : 'border-surface-200 dark:border-surface-700'}`} />
+          {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
+        </div>
+        
+        <div>
+          <label htmlFor="phone" className="block mb-1 font-medium">Phone</label>
+          <input id="phone" name="phone" type="text" value={formData.phone} onChange={handleChange} 
+            className="w-full p-2 border border-surface-200 dark:border-surface-700 rounded-lg" />
+        </div>
+        
+        <div>
+          <label htmlFor="type" className="block mb-1 font-medium">Contact Type</label>
+          <select id="type" name="type" value={formData.type} onChange={handleChange}
+            className="w-full p-2 border border-surface-200 dark:border-surface-700 rounded-lg">
+            {contactTypes.map(type => (
+              <option key={type.value} value={type.value}>{type.label}</option>
+            ))}
+          </select>
+        </div>
+        
+        <div>
+          <label htmlFor="location" className="block mb-1 font-medium">Location</label>
+          <input id="location" name="location" type="text" value={formData.location} onChange={handleChange} 
+            className="w-full p-2 border border-surface-200 dark:border-surface-700 rounded-lg" />
+        </div>
+        
+        <div>
+          <label htmlFor="status" className="block mb-1 font-medium">Status</label>
+          <select id="status" name="status" value={formData.status} onChange={handleChange}
+            className="w-full p-2 border border-surface-200 dark:border-surface-700 rounded-lg">
+            {statusOptions.map(status => (
+              <option key={status.value} value={status.value}>{status.label}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+      
+      <div className="flex justify-end gap-3 mt-6">
+        <button 
+          type="button" 
+          onClick={onCancel}
+          className="px-4 py-2 border border-surface-200 dark:border-surface-700 rounded-lg hover:bg-surface-100 dark:hover:bg-surface-700 transition-colors"
+        >
+          Cancel
+        </button>
+        <button 
+          type="submit"
+          className="px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg flex items-center gap-2 transition-colors"
+        >
+          <CheckCircle size={16} />
+          Add Contact
+        </button>
+      </div>
+    </form>
+  );
+};
