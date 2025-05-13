@@ -228,7 +228,7 @@ export default function Home() {
           </div>
           
           {/* Main Feature */}
-          <MainFeature />
+          <MainFeature selectedTab={selectedTab} />
         </main>
       </div>
     </div>
