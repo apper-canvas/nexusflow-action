@@ -21,7 +21,7 @@ export default function MessagesFeature() {
   // Sample contacts for messaging
   const contacts = [
     { id: 1, name: 'John Smith', status: 'online', avatar: 'JS', unread: 2, lastMessage: 'Let me know when you have a chance to review the proposal.' },
-    { id: 2, name: 'Sarah Johnson', status: 'online', avatar: 'SJ', unread: 0, lastMessage: 'I'll prepare the presentation for next week's meeting.' },
+    { id: 2, name: 'Sarah Johnson', status: 'online', avatar: 'SJ', unread: 0, lastMessage: 'I\'ll prepare the presentation for next week\'s meeting.' },
     { id: 3, name: 'Michael Chen', status: 'offline', avatar: 'MC', unread: 0, lastMessage: 'Thanks for your help with the client onboarding.' },
     { id: 4, name: 'Lisa Wong', status: 'away', avatar: 'LW', unread: 5, lastMessage: 'Can we schedule a call to discuss the project timeline?' },
     { id: 5, name: 'Robert Taylor', status: 'offline', avatar: 'RT', unread: 0, lastMessage: 'The contract has been signed. We can proceed with implementation.' }
